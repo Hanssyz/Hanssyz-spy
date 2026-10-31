@@ -6,24 +6,24 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local SpyData = {
-    LogText = "",
-    IsMinimized = false,
-    IsDragging = false,
-    StartPos = nil,
-    StartFramePos = nil,
-    RemoteCount = 0,
-    PromptCount = 0,
-    EggCount = 0,
-    FilterKeywords = {"egg", "steal", "trigger", "grab", "collect", "spawn", "interact", "tool"}
-}
+local SpyCore = {}
+SpyCore.IsActive = true
+SpyCore.IsMinimized = false
+SpyCore.LogText = ""
+SpyCore.RemoteCount = 0
+SpyCore.PromptCount = 0
+SpyCore.EggCount = 0
+SpyCore.LastLogTime = 0
+SpyCore.Cooldown = 0.5
+SpyCore.AllowedKeywords = {"egg", "steal", "grab", "trigger", "interact", "tool", "collect"}
+SpyCore.BlockedKeywords = {"away", "fps", "ping", "summary", "health", "server", "camera"}
 
-if PlayerGui:FindFirstChild("HanssyzSpy") then
-    PlayerGui.HanssyzSpy:Destroy()
+if PlayerGui:FindFirstChild("SpyUI") then
+    PlayerGui.SpyUI:Destroy()
 end
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "HanssyzSpy"
+ScreenGui.Name = "SpyUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.IgnoreGuiInset = true
@@ -31,7 +31,7 @@ ScreenGui.Parent = PlayerGui
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 320, 0, 420)
+MainFrame.Size = UDim2.new(0, 330, 0, 450)
 MainFrame.Position = UDim2.new(0, 15, 0, 80)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 18, 42)
 MainFrame.BorderSizePixel = 0
@@ -63,10 +63,10 @@ HeaderCorner.Parent = Header
 
 local HeaderTitle = Instance.new("TextLabel")
 HeaderTitle.Name = "Title"
-HeaderTitle.Size = UDim2.new(1, -50, 1, 0)
+HeaderTitle.Size = UDim2.new(1, -60, 1, 0)
 HeaderTitle.Position = UDim2.new(0, 15, 0, 0)
 HeaderTitle.BackgroundTransparency = 1
-HeaderTitle.Text = "Spy Tool v6.1"
+HeaderTitle.Text = "Advanced Spy v7.0"
 HeaderTitle.Font = Enum.Font.GothamBold
 HeaderTitle.TextColor3 = Color3.fromRGB(245, 248, 255)
 HeaderTitle.TextSize = 15
@@ -136,7 +136,7 @@ PromptLabel.Parent = StatsFrame
 
 local GuideFrame = Instance.new("Frame")
 GuideFrame.Name = "Guide"
-GuideFrame.Size = UDim2.new(1, -20, 0, 60)
+GuideFrame.Size = UDim2.new(1, -20, 0, 65)
 GuideFrame.Position = UDim2.new(0, 10, 0, 100)
 GuideFrame.BackgroundColor3 = Color3.fromRGB(40, 45, 80)
 GuideFrame.BorderSizePixel = 0
@@ -159,10 +159,10 @@ GuideTitle.Parent = GuideFrame
 
 local GuideDesc = Instance.new("TextLabel")
 GuideDesc.Name = "Desc"
-GuideDesc.Size = UDim2.new(1, -20, 0, 30)
-GuideDesc.Position = UDim2.new(0, 10, 0, 25)
+GuideDesc.Size = UDim2.new(1, -20, 0, 40)
+GuideDesc.Position = UDim2.new(0, 10, 0, 20)
 GuideDesc.BackgroundTransparency = 1
-GuideDesc.Text = "1. Pencet SCAN.\n2. Curi 1 Egg manual (pencet E)."
+GuideDesc.Text = "1. Pencet SCAN.\n2. Curi 1 Egg manual (pencet E).\n3. Liat Remote yg muncul."
 GuideDesc.Font = Enum.Font.Gotham
 GuideDesc.TextColor3 = Color3.fromRGB(200, 220, 255)
 GuideDesc.TextSize = 11
@@ -173,8 +173,8 @@ GuideDesc.Parent = GuideFrame
 
 local LogContainer = Instance.new("Frame")
 LogContainer.Name = "LogContainer"
-LogContainer.Size = UDim2.new(1, -20, 1, -200)
-LogContainer.Position = UDim2.new(0, 10, 0, 170)
+LogContainer.Size = UDim2.new(1, -20, 1, -230)
+LogContainer.Position = UDim2.new(0, 10, 0, 175)
 LogContainer.BackgroundColor3 = Color3.fromRGB(10, 12, 25)
 LogContainer.BorderSizePixel = 0
 LogContainer.ClipsDescendants = true
@@ -195,19 +195,19 @@ ScrollingLog.Size = UDim2.new(1, -10, 1, -10)
 ScrollingLog.Position = UDim2.new(0, 5, 0, 5)
 ScrollingLog.BackgroundTransparency = 1
 ScrollingLog.BorderSizePixel = 0
-ScrollingLog.ScrollBarThickness = 3
+ScrollingLog.ScrollBarThickness = 4
 ScrollingLog.ScrollBarImageColor3 = Color3.fromRGB(88, 166, 255)
 ScrollingLog.CanvasSize = UDim2.new(0, 0, 0, 0)
 ScrollingLog.Parent = LogContainer
 
 local LogLayout = Instance.new("UIListLayout")
-LogLayout.Padding = UDim.new(0, 4)
+LogLayout.Padding = UDim.new(0, 3)
 LogLayout.Parent = ScrollingLog
 
 local BtnFrame = Instance.new("Frame")
 BtnFrame.Name = "Buttons"
 BtnFrame.Size = UDim2.new(1, -20, 0, 35)
-BtnFrame.Position = UDim2.new(0, 10, 1, -45)
+BtnFrame.Position = UDim2.new(0, 10, 1, -75)
 BtnFrame.BackgroundTransparency = 1
 BtnFrame.Parent = MainFrame
 
@@ -241,8 +241,23 @@ local CopyCorner = Instance.new("UICorner")
 CopyCorner.CornerRadius = UDim.new(0, 6)
 CopyCorner.Parent = CopyBtn
 
+local ClearBtn = Instance.new("TextButton")
+ClearBtn.Name = "ClearBtn"
+ClearBtn.Size = UDim2.new(1, -20, 0, 25)
+ClearBtn.Position = UDim2.new(0, 10, 1, -30)
+ClearBtn.BackgroundColor3 = Color3.fromRGB(255, 120, 120)
+ClearBtn.Text = "CLEAR LOG"
+ClearBtn.Font = Enum.Font.GothamBold
+ClearBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ClearBtn.TextSize = 11
+ClearBtn.Parent = MainFrame
+
+local ClearCorner = Instance.new("UICorner")
+ClearCorner.CornerRadius = UDim.new(0, 6)
+ClearCorner.Parent = ClearBtn
+
 local function Log(text, color)
-    SpyData.LogText = SpyData.LogText .. text .. "\n"
+    SpyCore.LogText = SpyCore.LogText .. text .. "\n"
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, 0, 0, 22)
     label.BackgroundTransparency = 1
@@ -256,26 +271,46 @@ local function Log(text, color)
     ScrollingLog.CanvasSize = UDim2.new(0, 0, 0, LogLayout.AbsoluteContentSize.Y + 10)
 end
 
-local function IsRelevant(text)
-    local lower = text:lower()
-    for _, kw in pairs(SpyData.FilterKeywords) do
-        if lower:find(kw) then return true end
+local function CheckSpamFilter(name, path)
+    local lowerName = name:lower()
+    local lowerPath = path:lower()
+    
+    for _, block in pairs(SpyCore.BlockedKeywords) do
+        if lowerName:find(block) or lowerPath:find(block) then
+            return false
+        end
     end
-    if lower:find("away") or lower:find("fps") or lower:find("ping") then return false end
+    
+    for _, allow in pairs(SpyCore.AllowedKeywords) do
+        if lowerName:find(allow) or lowerPath:find(allow) then
+            return true
+        end
+    end
+    
     return false
 end
 
-Log("[SISTEM] Spy Tool Aktif.", Color3.fromRGB(100, 255, 160))
-
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    if not SpyCore.IsActive then
+        return oldNamecall(self, ...)
+    end
+    
     local method = getnamecallmethod()
     if method == "FireServer" or method == "InvokeServer" then
-        local path = self:GetFullName()
+        local now = tick()
+        if now - SpyCore.LastLogTime < SpyCore.Cooldown then
+            return oldNamecall(self, ...)
+        end
+        
         local name = self.Name
-        if IsRelevant(name) or IsRelevant(path) then
-            SpyData.RemoteCount = SpyData.RemoteCount + 1
-            RemoteLabel.Text = "Remotes: " .. SpyData.RemoteCount
+        local path = self:GetFullName()
+        
+        if CheckSpamFilter(name, path) then
+            SpyCore.LastLogTime = now
+            SpyCore.RemoteCount = SpyCore.RemoteCount + 1
+            RemoteLabel.Text = "Remotes: " .. SpyCore.RemoteCount
+            
             local args = {...}
             local argStr = ""
             for _, v in pairs(args) do
@@ -293,70 +328,109 @@ end)
 
 local oldPrompt = fireproximityprompt
 fireproximityprompt = function(prompt)
-    SpyData.PromptCount = SpyData.PromptCount + 1
-    PromptLabel.Text = "Prompts: " .. SpyData.PromptCount
+    if not SpyCore.IsActive then
+        return oldPrompt(prompt)
+    end
+    
+    SpyCore.PromptCount = SpyCore.PromptCount + 1
+    PromptLabel.Text = "Prompts: " .. SpyCore.PromptCount
     Log("PROMPT: " .. prompt.Name .. " (" .. prompt.Parent.Name .. ")", Color3.fromRGB(88, 166, 255))
+    
     return oldPrompt(prompt)
 end
 
 ScanBtn.MouseButton1Click:Connect(function()
     Log("--- SCAN DIMULAI ---", Color3.fromRGB(255, 255, 100))
     local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    if not char or not char:FindFirstChild("HumanoidRootPart") then 
+        Log("Karakter belum spawn.", Color3.fromRGB(255, 120, 120))
+        return 
+    end
+    
     local hrp = char.HumanoidRootPart
     local found = 0
+
     for _, v in pairs(workspace:GetDescendants()) do
         if (v:IsA("Model") or v:IsA("BasePart")) and v.Name:lower():find("egg") then
             local pos = v:IsA("Model") and v:GetPivot().Position or v.Position
             local dist = (hrp.Position - pos).Magnitude
-            if dist < 150 then
+            
+            if dist < 120 then
                 found = found + 1
-                SpyData.EggCount = SpyData.EggCount + 1
-                EggLabel.Text = "Eggs: " .. SpyData.EggCount
-                local prompt = v:FindFirstChildWhichIsA("ProximityPrompt", true)
-                local status = prompt and "BISA DICURI" or "PAJANGAN"
-                local color = prompt and Color3.fromRGB(100, 255, 160) or Color3.fromRGB(255, 120, 120)
+                SpyCore.EggCount = SpyCore.EggCount + 1
+                EggLabel.Text = "Eggs: " .. SpyCore.EggCount
+                
+                local hasPrompt = v:FindFirstChildWhichIsA("ProximityPrompt", true) ~= nil
+                local status = hasPrompt and "BISA DICURI" or "PAJANGAN"
+                local color = hasPrompt and Color3.fromRGB(100, 255, 160) or Color3.fromRGB(255, 120, 120)
+                
                 Log("EGG: " .. v.Name .. " | " .. status, color)
             end
         end
     end
+    
     if found == 0 then
-        Log("Egg tidak ditemukan.", Color3.fromRGB(255, 120, 120))
+        Log("Egg tidak ditemukan di sekitar.", Color3.fromRGB(255, 120, 120))
     end
 end)
 
 CopyBtn.MouseButton1Click:Connect(function()
     if setclipboard then
-        setclipboard(SpyData.LogText)
+        setclipboard(SpyCore.LogText)
         CopyBtn.Text = "COPIED!"
+        task.wait(2)
+        CopyBtn.Text = "COPY LOG"
+    else
+        CopyBtn.Text = "NO CLIPBOARD"
         task.wait(2)
         CopyBtn.Text = "COPY LOG"
     end
 end)
 
+ClearBtn.MouseButton1Click:Connect(function()
+    for _, v in pairs(ScrollingLog:GetChildren()) do
+        if v:IsA("TextLabel") then
+            v:Destroy()
+        end
+    end
+    SpyCore.LogText = ""
+    SpyCore.RemoteCount = 0
+    SpyCore.PromptCount = 0
+    SpyCore.EggCount = 0
+    RemoteLabel.Text = "Remotes: 0"
+    PromptLabel.Text = "Prompts: 0"
+    EggLabel.Text = "Eggs: 0"
+    Log("[SISTEM] Log dibersihkan.", Color3.fromRGB(255, 255, 100))
+end)
+
 MinBtn.MouseButton1Click:Connect(function()
-    if SpyData.IsMinimized then return end
-    SpyData.IsMinimized = true
+    if SpyCore.IsMinimized then return end
+    SpyCore.IsMinimized = true
     MainFrame.Visible = false
+    
     local Icon = Instance.new("TextButton")
-    Icon.Size = UDim2.new(0, 40, 0, 40)
+    Icon.Name = "MinIcon"
+    Icon.Size = UDim2.new(0, 45, 0, 45)
     Icon.Position = UDim2.new(0, 20, 0, 100)
     Icon.BackgroundColor3 = Color3.fromRGB(28, 32, 58)
     Icon.Text = "S"
     Icon.Font = Enum.Font.GothamBold
     Icon.TextColor3 = Color3.fromRGB(88, 166, 255)
-    Icon.TextSize = 18
+    Icon.TextSize = 20
     Icon.ZIndex = 50
     Icon.Parent = ScreenGui
+    
     local ICorner = Instance.new("UICorner")
     ICorner.CornerRadius = UDim.new(0, 10)
     ICorner.Parent = Icon
+    
     local IStroke = Instance.new("UIStroke")
     IStroke.Color = Color3.fromRGB(88, 166, 255)
     IStroke.Thickness = 2
     IStroke.Parent = Icon
+    
     Icon.MouseButton1Click:Connect(function()
-        SpyData.IsMinimized = false
+        SpyCore.IsMinimized = false
         MainFrame.Visible = true
         Icon:Destroy()
     end)
@@ -370,14 +444,26 @@ Header.InputBegan:Connect(function(i)
         sPos = MainFrame.Position
     end
 end)
+
 Header.InputEnded:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
         drag = false
     end
 end)
+
 UserInputService.InputChanged:Connect(function(i)
     if drag and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
         local d = i.Position - dStart
         MainFrame.Position = UDim2.new(sPos.X.Scale, sPos.X.Offset + d.X, sPos.Y.Scale, sPos.Y.Offset + d.Y)
     end
 end)
+
+RunService.RenderStepped:Connect(function()
+    if MainFrame.Visible then
+        local pulse = math.abs(math.sin(tick() * 2))
+        MainStroke.Transparency = 0.3 + (pulse * 0.2)
+    end
+end)
+
+Log("[SISTEM] Advanced Spy v7.0 Loaded.", Color3.fromRGB(100, 255, 160))
+Log("[INFO] Silakan ikuti panduan di atas.", Color3.fromRGB(255, 255, 100))
